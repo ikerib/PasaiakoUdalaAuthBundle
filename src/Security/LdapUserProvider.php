@@ -31,7 +31,34 @@ class LdapUserProvider implements UserProviderInterface
         // Map groups to roles
         $roles = $this->ldapClient->mapGroupsToRoles($groups);
 
-        return new LdapUser($identifier, $roles, $groups);
+        // Create user object
+        $user = new LdapUser($identifier, $roles, $groups);
+
+        // Get and set user attributes from LDAP
+        $attributes = $this->ldapClient->getUserAttributes($identifier);
+
+        if (!empty($attributes)) {
+            if (isset($attributes['department'])) {
+                $user->setDepartment($attributes['department']);
+            }
+            if (isset($attributes['displayName'])) {
+                $user->setDisplayName($attributes['displayName']);
+            }
+            if (isset($attributes['extensionName'])) {
+                $user->setExtensionName($attributes['extensionName']);
+            }
+            if (isset($attributes['mail'])) {
+                $user->setMail($attributes['mail']);
+            }
+            if (isset($attributes['preferredLanguage'])) {
+                $user->setPreferredLanguage($attributes['preferredLanguage']);
+            }
+            if (isset($attributes['description'])) {
+                $user->setDescription($attributes['description']);
+            }
+        }
+
+        return $user;
     }
 
     /**

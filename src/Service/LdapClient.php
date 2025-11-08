@@ -222,6 +222,86 @@ class LdapClient
     }
 
     /**
+     * Get user attributes from LDAP
+     *
+     * @param string $username Username
+     * @return array Array of user attributes
+     */
+    public function getUserAttributes(string $username): array
+    {
+        try {
+            $this->connect();
+            $this->bindForSearch();
+
+            $baseDn = $this->groupSearchBaseDn ?? $this->baseDn;
+            $userDn = str_replace('{username}', $username, $this->userDnPattern);
+
+            // Build filter to find user
+            $filter = sprintf('(sAMAccountName=%s)', ldap_escape($username, '', LDAP_ESCAPE_FILTER));
+
+            $this->logger->info('LDAP: Buscando atributos del usuario', [
+                'username' => $username,
+                'base_dn' => $baseDn,
+                'filter' => $filter
+            ]);
+
+            // Request specific attributes
+            $attributes = [
+                'department',
+                'displayName',
+                'extensionName',
+                'mail',
+                'preferredLanguage',
+                'description'
+            ];
+
+            $search = @ldap_search($this->connection, $baseDn, $filter, $attributes);
+
+            if (!$search) {
+                $this->logger->warning('LDAP: Error al buscar atributos del usuario', [
+                    'username' => $username,
+                    'error' => ldap_error($this->connection)
+                ]);
+                return [];
+            }
+
+            $entries = ldap_get_entries($this->connection, $search);
+
+            if ($entries['count'] === 0) {
+                $this->logger->info('LDAP: Usuario no encontrado para obtener atributos', ['username' => $username]);
+                return [];
+            }
+
+            $entry = $entries[0];
+            $userAttributes = [];
+
+            // Extract attributes (LDAP returns arrays, we take the first value)
+            foreach ($attributes as $attribute) {
+                $attributeLower = strtolower($attribute);
+                if (isset($entry[$attributeLower][0])) {
+                    $userAttributes[$attribute] = $entry[$attributeLower][0];
+                } else {
+                    $userAttributes[$attribute] = null;
+                }
+            }
+
+            $this->logger->info('LDAP: Atributos obtenidos', [
+                'username' => $username,
+                'attributes' => array_keys(array_filter($userAttributes))
+            ]);
+
+            return $userAttributes;
+
+        } catch (\Exception $e) {
+            $this->logger->error('LDAP: Error al obtener atributos del usuario', [
+                'username' => $username,
+                'error' => $e->getMessage()
+            ]);
+            return [];
+        }
+    }
+
+    /**
      * Map LDAP groups to Symfony roles
      *
      * @param array $groups Array of LDAP group CNs
