@@ -18,8 +18,18 @@ class PasaiakoUdalaAuthExtension extends Extension
     {
         $configuration = new Configuration();
         $config = $this->processConfiguration($configuration, $configs);
+        // If no LDAP host is configured, do not register services to avoid
+        // breaking the host application when the bundle is installed but not configured.
+        $serverConfig = $config['server'] ?? [];
+
+        if (empty($serverConfig['host'])) {
+            // Mark the bundle as disabled via a parameter so services can adapt if necessary
+            $container->setParameter('pasaiako_udala_auth.enabled', false);
+            return;
+        }
 
         // Store configuration as parameters
+        $container->setParameter('pasaiako_udala_auth.enabled', true);
         $container->setParameter('pasaiako_udala_auth.server.host', $config['server']['host']);
         $container->setParameter('pasaiako_udala_auth.server.port', $config['server']['port']);
         $container->setParameter('pasaiako_udala_auth.server.encryption', $config['server']['encryption']);

@@ -30,21 +30,26 @@ pasaiako_udala_auth:
     server:
         host: 'LDAP_SERVER_IP'
         port: 389
+        encryption: 'none' # none, ssl or tls
         base_dn: 'dc=domain,dc=net'
-        service_account_dn: 'cn=ServiceAccount,ou=ServiceAccounts,dc=domain,dc=net'
-        service_account_password: '%env(LDAP_SERVICE_PASSWORD)%'
-        user_search_filter: '(sAMAccountName={username})'
-        group_search_filter: '(member:1.2.840.113556.1.4.1941:={dn})'
-        
+        # DN pattern to bind users (use {username})
+        user_dn_pattern: 'uid={username},ou=users,dc=domain,dc=net'
+        # Optional: service/bind account used for searches
+        bind_dn: 'cn=ServiceAccount,ou=ServiceAccounts,dc=domain,dc=net'
+        bind_password: '%env(LDAP_SERVICE_PASSWORD)%'
+        group_search_filter: '(member:1.2.840.113556.1.4.1941:={user_dn})'
+
     role_mapping:
         'CN=Developers,OU=Groups,DC=domain,DC=net': 'ROLE_DEVELOPER'
         'CN=Admins,OU=Groups,DC=domain,DC=net': 'ROLE_ADMIN'
-        
+
     default_role: 'ROLE_USER'
     
     group_search:
         enabled: true
-        use_service_account: true
+        base_dn: null
+        filter: '(member={user_dn})'
+        recursive: true
 ```
 
 ## 4. Inguruneko aldagaiak (Environment variables) konfiguratu
@@ -96,7 +101,10 @@ security:
         main:
             lazy: true
             provider: ldap_user_provider
-            
+            # When using multiple authenticators, define the entry_point
+            # so Symfony knows which authenticator starts the authentication
+            entry_point: PasaiaUdala\AuthBundle\Security\LdapAuthenticator
+
             custom_authenticators:
                 - PasaiaUdala\AuthBundle\Security\LdapAuthenticator
                 - PasaiaUdala\AuthBundle\Security\CertificateAuthenticator

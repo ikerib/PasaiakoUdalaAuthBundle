@@ -1,4 +1,3 @@
-````markdown
 # Arazoen konponketa (Troubleshooting)
 
 PasaiakoUdalaAuthBundle erabiltzerakoan sortzen diren arazo ohikoen konponbideak.
@@ -21,17 +20,56 @@ PasaiakoUdalaAuthBundle erabiltzerakoan sortzen diren arazo ohikoen konponbideak
      "(sAMAccountName=usuario)"
    ```
 
-2. **Bilaketa-iragazkia okerra da**
+2. **DN patroi okerra edo `user_dn_pattern` gaizki konfiguratuta**
    ```yaml
    # config/packages/pasaiako_udala_auth.yaml fitxategian egiaztatu
-   user_search_filter: '(sAMAccountName={username})'
-   # Erabili behar al da sAMAccountName edo uid?
+   pasaiako_udala_auth:
+     server:
+       user_dn_pattern: 'uid={username},ou=users,dc=domain,dc=net'
    ```
 
 3. **Base DN okerra da**
    ```yaml
-   base_dn: 'dc=pasaia,dc=net'
-   # LDAP egitura zurean dagoen bezala konfiguratu?
+   pasaiako_udala_auth:
+     server:
+       base_dn: 'dc=pasaia,dc=net'
+   ```
+
+# Arazoen konponketa (Troubleshooting)
+
+PasaiakoUdalaAuthBundle erabiltzerakoan sortzen diren arazo ohikoen konponbideak.
+
+## LDAP autentifikazio arazoak
+
+### "Invalid credentials"
+
+**Sintoma**: Erabiltzaile/pasahitz zuzena emanda ere saioa hastean errorea agertzen da
+
+**Arrazoi posibleak**:
+
+1. **Erabiltzailea ez dago LDAP-en**
+   ```bash
+   # ldapsearch bidez egiaztatzeko
+   ldapsearch -x -H ldap://172.28.64.20:389 \
+     -D "cn=ServiceAccount,ou=ServiceAccounts,dc=pasaia,dc=net" \
+     -w "password" \
+     -b "dc=pasaia,dc=net" \
+     "(sAMAccountName=usuario)"
+   ```
+
+2. **DN patroi okerra edo `user_dn_pattern` gaizki konfiguratuta**
+   ```yaml
+   # config/packages/pasaiako_udala_auth.yaml fitxategian egiaztatu
+   pasaiako_udala_auth:
+     server:
+       user_dn_pattern: 'uid={username},ou=users,dc=domain,dc=net'
+   ```
+
+3. **Base DN okerra da**
+   ```yaml
+   pasaiako_udala_auth:
+     server:
+       base_dn: 'dc=pasaia,dc=net'
    ```
 
 4. **Pasahitzak karaktere bereziak ditu**
@@ -51,5 +89,3 @@ PasaiakoUdalaAuthBundle erabiltzerakoan sortzen diren arazo ohikoen konponbideak
    # Edo nc erabiliz
    nc -zv 172.28.64.20 389
    ```
-
-````

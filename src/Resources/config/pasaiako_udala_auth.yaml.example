@@ -1,9 +1,10 @@
-# LdapAuthBundle Configuration Example
+```plaintext
+# PasaiakoUdalaAuthBundle Configuration Example
 #
 # This file shows how to configure the LDAP authentication bundle
-# Copy this to config/packages/ldap_auth.yaml and adjust for your environment
+# Copy this to config/packages/pasaiako_udala_auth.yaml and adjust for your environment
 
-ldap_auth:
+pasaiako_udala_auth:
     # LDAP Server Configuration
     server:
         # LDAP server hostname
@@ -56,3 +57,5 @@ ldap_auth:
 
         # Search groups recursively (nested groups)
         recursive: true
+
+```
