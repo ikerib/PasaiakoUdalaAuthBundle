@@ -4,7 +4,7 @@ services:
         autoconfigure: true
 
     # LDAP Client Service
-    App\Bundle\PasaiakoUdalaAuthBundle\Service\LdapClient:
+    PasaiaUdala\AuthBundle\Service\LdapClient:
         autowire: false
         arguments:
             $host: '%pasaiako_udala_auth.server.host%'
@@ -24,19 +24,19 @@ services:
         public: true
 
     # User Provider
-    App\Bundle\PasaiakoUdalaAuthBundle\Security\LdapUserProvider:
+    PasaiaUdala\AuthBundle\Security\LdapUserProvider:
         arguments:
-            $ldapClient: '@App\Bundle\PasaiakoUdalaAuthBundle\Service\LdapClient'
+            $ldapClient: '@PasaiaUdala\AuthBundle\Service\LdapClient'
 
     # LDAP Authenticator
-    App\Bundle\PasaiakoUdalaAuthBundle\Security\LdapAuthenticator:
+    PasaiaUdala\AuthBundle\Security\LdapAuthenticator:
         arguments:
-            $ldapClient: '@App\Bundle\PasaiakoUdalaAuthBundle\Service\LdapClient'
-            $userProvider: '@App\Bundle\PasaiakoUdalaAuthBundle\Security\LdapUserProvider'
+            $ldapClient: '@PasaiaUdala\AuthBundle\Service\LdapClient'
+            $userProvider: '@PasaiaUdala\AuthBundle\Security\LdapUserProvider'
 
     # Certificate Authenticator (OAuth2 Izenpe)
-    App\Bundle\PasaiakoUdalaAuthBundle\Security\CertificateAuthenticator:
+    PasaiaUdala\AuthBundle\Security\CertificateAuthenticator:
         arguments:
             $clientRegistry: '@KnpU\OAuth2ClientBundle\Client\ClientRegistry'
             $router: '@router'
-            $ldapClient: '@App\Bundle\PasaiakoUdalaAuthBundle\Service\LdapClient'
+            $ldapClient: '@PasaiaUdala\AuthBundle\Service\LdapClient'
