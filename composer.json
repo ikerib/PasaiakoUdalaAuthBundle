@@ -1,0 +1,52 @@
+{
+    "name": "pasaia-udala/auth-bundle",
+    "description": "Dual authentication bundle for Symfony: LDAP (Active Directory) + Certificate (Izenpe OAuth2)",
+    "type": "symfony-bundle",
+    "license": "MIT",
+    "keywords": [
+        "symfony",
+        "bundle",
+        "authentication",
+        "ldap",
+        "active-directory",
+        "oauth2",
+        "certificate",
+        "izenpe",
+        "giltza",
+        "pasaia",
+        "dual-auth"
+    ],
+    "authors": [
+        {
+            "name": "Pasaia Udala",
+            "email": "informatika@pasaia.net"
+        }
+    ],
+    "require": {
+        "php": ">=8.2",
+        "ext-ldap": "*",
+        "symfony/framework-bundle": "^6.4|^7.0",
+        "symfony/security-bundle": "^6.4|^7.0",
+        "symfony/config": "^6.4|^7.0",
+        "symfony/dependency-injection": "^6.4|^7.0",
+        "symfony/http-kernel": "^6.4|^7.0",
+        "knpuniversity/oauth2-client-bundle": "^2.19",
+        "ikerib/giltza-oauth2": "^1.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.0|^11.0",
+        "symfony/phpunit-bridge": "^6.4|^7.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "PasaiaUdala\\AuthBundle\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "PasaiaUdala\\AuthBundle\\Tests\\": "tests/"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

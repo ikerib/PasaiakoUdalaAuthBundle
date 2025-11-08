@@ -1,0 +1,42 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    # LDAP Client Service
+    App\Bundle\PasaiakoUdalaAuthBundle\Service\LdapClient:
+        autowire: false
+        arguments:
+            $host: '%pasaiako_udala_auth.server.host%'
+            $port: '%pasaiako_udala_auth.server.port%'
+            $encryption: '%pasaiako_udala_auth.server.encryption%'
+            $baseDn: '%pasaiako_udala_auth.server.base_dn%'
+            $userDnPattern: '%pasaiako_udala_auth.server.user_dn_pattern%'
+            $bindDn: '%pasaiako_udala_auth.server.bind_dn%'
+            $bindPassword: '%pasaiako_udala_auth.server.bind_password%'
+            $roleMapping: '%pasaiako_udala_auth.role_mapping%'
+            $defaultRole: '%pasaiako_udala_auth.default_role%'
+            $groupSearchEnabled: '%pasaiako_udala_auth.group_search.enabled%'
+            $groupSearchBaseDn: '%pasaiako_udala_auth.group_search.base_dn%'
+            $groupSearchFilter: '%pasaiako_udala_auth.group_search.filter%'
+            $groupSearchRecursive: '%pasaiako_udala_auth.group_search.recursive%'
+            $logger: '@logger'
+        public: true
+
+    # User Provider
+    App\Bundle\PasaiakoUdalaAuthBundle\Security\LdapUserProvider:
+        arguments:
+            $ldapClient: '@App\Bundle\PasaiakoUdalaAuthBundle\Service\LdapClient'
+
+    # LDAP Authenticator
+    App\Bundle\PasaiakoUdalaAuthBundle\Security\LdapAuthenticator:
+        arguments:
+            $ldapClient: '@App\Bundle\PasaiakoUdalaAuthBundle\Service\LdapClient'
+            $userProvider: '@App\Bundle\PasaiakoUdalaAuthBundle\Security\LdapUserProvider'
+
+    # Certificate Authenticator (OAuth2 Izenpe)
+    App\Bundle\PasaiakoUdalaAuthBundle\Security\CertificateAuthenticator:
+        arguments:
+            $clientRegistry: '@KnpU\OAuth2ClientBundle\Client\ClientRegistry'
+            $router: '@router'
+            $ldapClient: '@App\Bundle\PasaiakoUdalaAuthBundle\Service\LdapClient'

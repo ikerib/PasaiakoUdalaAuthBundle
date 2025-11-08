@@ -1,0 +1,58 @@
+# LdapAuthBundle Configuration Example
+#
+# This file shows how to configure the LDAP authentication bundle
+# Copy this to config/packages/ldap_auth.yaml and adjust for your environment
+
+ldap_auth:
+    # LDAP Server Configuration
+    server:
+        # LDAP server hostname
+        host: '%env(LDAP_HOST)%'
+
+        # LDAP server port (389 for LDAP, 636 for LDAPS)
+        port: '%env(int:LDAP_PORT)%'
+
+        # Encryption: 'none', 'ssl' (ldaps://), or 'tls' (STARTTLS)
+        encryption: '%env(LDAP_ENCRYPTION)%'
+
+        # Base DN for LDAP searches
+        # Example: dc=pasaia,dc=eus
+        base_dn: '%env(LDAP_BASE_DN)%'
+
+        # User DN pattern for authentication
+        # Use {username} as placeholder for the username
+        # Example: uid={username},ou=users,dc=pasaia,dc=eus
+        user_dn_pattern: '%env(LDAP_USER_DN_PATTERN)%'
+
+        # Optional: Bind DN for group searches (if server requires authentication)
+        # Leave null for anonymous bind
+        bind_dn: '%env(LDAP_BIND_DN)%'
+
+        # Optional: Password for bind DN
+        bind_password: '%env(LDAP_BIND_PASSWORD)%'
+
+    # Map LDAP groups to Symfony roles
+    # Format: ldap_group_name: SYMFONY_ROLE
+    role_mapping:
+        informatika: ROLE_ADMIN
+        GGBB: ROLE_KUDEATU
+        langilea: ROLE_USER
+        # Add more mappings as needed
+
+    # Default role for authenticated users without group mapping
+    default_role: ROLE_USER
+
+    # Group search configuration
+    group_search:
+        # Enable group membership search
+        enabled: true
+
+        # Base DN for group searches (defaults to server.base_dn if null)
+        base_dn: null
+
+        # LDAP filter for group search
+        # Use {user_dn} as placeholder for the user's DN
+        filter: '(member={user_dn})'
+
+        # Search groups recursively (nested groups)
+        recursive: true
