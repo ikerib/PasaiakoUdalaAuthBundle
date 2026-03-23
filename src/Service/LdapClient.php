@@ -441,7 +441,16 @@ class LdapClient
         for ($i = 0; $i < $entries['count']; $i++) {
             $entry = $entries[$i];
 
-            // Active Directory: memberOf attribute contains all groups
+            // Always add the entry's own CN first                                                                 
+            if (isset($entry['cn'][0])) {                                                                          
+                $entryCn = $entry['cn'][0];                                                                        
+                if (!in_array($entryCn, $foundGroups, true)) {                                                     
+                    $foundGroups[] = $entryCn;                                                                     
+                    $this->logger->debug('LDAP: Grupo encontrado', ['group' => $entryCn]);                         
+                }                                                                                                  
+            }  
+
+            // Active Directory: memberOf attribute contains parent groups
             if (isset($entry['memberof'])) {
                 for ($j = 0; $j < $entry['memberof']['count']; $j++) {
                     $groupDn = $entry['memberof'][$j];
@@ -464,19 +473,6 @@ class LdapClient
                         }
                     }
                 }
-            }
-
-            // Fallback: traditional group search by CN
-            elseif (isset($entry['cn'][0])) {
-                $groupCn = $entry['cn'][0];
-
-                // Skip if already found
-                if (in_array($groupCn, $foundGroups, true)) {
-                    continue;
-                }
-
-                $foundGroups[] = $groupCn;
-                $this->logger->debug('LDAP: Grupo encontrado', ['group' => $groupCn]);
             }
         }
 
