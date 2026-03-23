@@ -33,6 +33,8 @@ services:
         arguments:
             $ldapClient: '@PasaiaUdala\AuthBundle\Service\LdapClient'
             $userProvider: '@PasaiaUdala\AuthBundle\Security\LdapUserProvider'
+            $homeRoute: '%pasaiako_udala_auth.routes.home%'
+            $loginLdapRoute: '%pasaiako_udala_auth.routes.login_ldap%'
 
     # Certificate Authenticator (OAuth2 Izenpe)
     PasaiaUdala\AuthBundle\Security\CertificateAuthenticator:
@@ -40,3 +42,6 @@ services:
             $clientRegistry: '@KnpU\OAuth2ClientBundle\Client\ClientRegistry'
             $router: '@router'
             $ldapClient: '@PasaiaUdala\AuthBundle\Service\LdapClient'
+            $homeRoute: '%pasaiako_udala_auth.routes.home%'
+            $loginSelectorRoute: '%pasaiako_udala_auth.routes.login_selector%'
+            $oauthCheckRoute: '%pasaiako_udala_auth.routes.oauth_check%'

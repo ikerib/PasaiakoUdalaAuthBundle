@@ -28,12 +28,12 @@ class LdapAuthenticator extends AbstractLoginFormAuthenticator
 {
     use TargetPathTrait;
 
-    public const LOGIN_ROUTE = 'app_login_ldap';
-
     public function __construct(
         private readonly LdapClient $ldapClient,
         private readonly LdapUserProvider $userProvider,
-        private readonly UrlGeneratorInterface $urlGenerator
+        private readonly UrlGeneratorInterface $urlGenerator,
+        private readonly string $homeRoute = 'app_home',
+        private readonly string $loginLdapRoute = 'app_login_ldap',
     ) {
     }
 
@@ -75,12 +75,11 @@ class LdapAuthenticator extends AbstractLoginFormAuthenticator
             return new RedirectResponse($targetPath);
         }
 
-        // Redirect to default page after login
-        return new RedirectResponse($this->urlGenerator->generate('app_home'));
+        return new RedirectResponse($this->urlGenerator->generate($this->homeRoute));
     }
 
     protected function getLoginUrl(Request $request): string
     {
-        return $this->urlGenerator->generate(self::LOGIN_ROUTE);
+        return $this->urlGenerator->generate($this->loginLdapRoute);
     }
 }

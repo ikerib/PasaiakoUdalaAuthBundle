@@ -43,6 +43,17 @@ class PasaiakoUdalaAuthExtension extends Extension
         $container->setParameter('pasaiako_udala_auth.group_search.base_dn', $config['group_search']['base_dn']);
         $container->setParameter('pasaiako_udala_auth.group_search.filter', $config['group_search']['filter']);
         $container->setParameter('pasaiako_udala_auth.group_search.recursive', $config['group_search']['recursive']);
+        $container->setParameter('pasaiako_udala_auth.routes.home', $config['routes']['home']);
+        $container->setParameter('pasaiako_udala_auth.routes.login_selector', $config['routes']['login_selector']);
+        $container->setParameter('pasaiako_udala_auth.routes.login_ldap', $config['routes']['login_ldap']);
+        $container->setParameter('pasaiako_udala_auth.routes.oauth_connect', $config['routes']['oauth_connect']);
+        $container->setParameter('pasaiako_udala_auth.routes.oauth_check', $config['routes']['oauth_check']);
+
+        // Register Twig globals if TwigBundle is available
+        if ($container->hasDefinition('twig') || $container->hasAlias('twig')) {
+            $twig = $container->getDefinition('twig');
+            $twig->addMethodCall('addGlobal', ['pasaiako_udala_auth_routes', $config['routes']]);
+        }
 
         // Load services
         $loader = new YamlFileLoader(

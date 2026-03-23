@@ -26,14 +26,17 @@ class CertificateAuthenticator extends OAuth2Authenticator implements Authentica
     public function __construct(
         private readonly ClientRegistry $clientRegistry,
         private readonly RouterInterface $router,
-        private readonly LdapClient $ldapClient
+        private readonly LdapClient $ldapClient,
+        private readonly string $homeRoute = 'app_home',
+        private readonly string $loginSelectorRoute = 'app_login',
+        private readonly string $oauthCheckRoute = 'oauth_check',
     ) {
     }
 
     public function supports(Request $request): ?bool
     {
         // Solo soporta la ruta de callback de OAuth
-        return $request->attributes->get('_route') === 'oauth_check';
+        return $request->attributes->get('_route') === $this->oauthCheckRoute;
     }
 
     public function authenticate(Request $request): Passport
@@ -86,16 +89,14 @@ class CertificateAuthenticator extends OAuth2Authenticator implements Authentica
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
     {
-        // Redirigir al home después de autenticación exitosa
-        return new RedirectResponse($this->router->generate('app_home'));
+        return new RedirectResponse($this->router->generate($this->homeRoute));
     }
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): ?Response
     {
-        // En caso de error, redirigir al selector de login con mensaje
         $request->getSession()->set('_security.last_error', $exception);
 
-        return new RedirectResponse($this->router->generate('app_login'));
+        return new RedirectResponse($this->router->generate($this->loginSelectorRoute));
     }
 
     /**
@@ -103,6 +104,6 @@ class CertificateAuthenticator extends OAuth2Authenticator implements Authentica
      */
     public function start(Request $request, ?AuthenticationException $authException = null): Response
     {
-        return new RedirectResponse($this->router->generate('app_login'));
+        return new RedirectResponse($this->router->generate($this->loginSelectorRoute));
     }
 }

@@ -135,7 +135,7 @@
 
         <div class="auth-methods">
             <!-- LDAP Login -->
-            <a href="{{ path('app_login_ldap') }}" class="auth-method-btn">
+            <a href="{{ path(pasaiako_udala_auth_routes.login_ldap) }}" class="auth-method-btn">
                 <div class="auth-method-icon">
                     👤
                 </div>
@@ -146,7 +146,7 @@
             </a>
 
             <!-- Certificate Login -->
-            <a href="{{ path('oauth_connect') }}" class="auth-method-btn">
+            <a href="{{ path(pasaiako_udala_auth_routes.oauth_connect) }}" class="auth-method-btn">
                 <div class="auth-method-icon">
                     📜
                 </div>
