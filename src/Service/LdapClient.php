@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace PasaiaUdala\AuthBundle\Service;
 
 use Psr\Log\LoggerInterface;
+use Symfony\Contracts\Cache\CacheInterface;
+use Symfony\Contracts\Cache\ItemInterface;
 
 /**
  * LdapClient - Service for LDAP authentication and group search
@@ -17,7 +19,7 @@ use Psr\Log\LoggerInterface;
  */
 class LdapClient
 {
-    private $connection = null;
+    private ?\LDAP\Connection $connection = null;
 
     public function __construct(
         private readonly string $host,
@@ -33,7 +35,11 @@ class LdapClient
         private readonly ?string $groupSearchBaseDn,
         private readonly string $groupSearchFilter,
         private readonly bool $groupSearchRecursive,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly string $dniField = 'employeeID',
+        private readonly array $userAttributes = ['department', 'displayName', 'extensionName', 'mail', 'preferredLanguage', 'description'],
+        private readonly int $cacheTtl = 0,
+        private readonly ?CacheInterface $cache = null,
     ) {
     }
 
@@ -44,39 +50,40 @@ class LdapClient
      * @param string $password User password
      * @return bool True if authentication successful
      */
-    public function authenticate(string $username, string $password): bool
+    public function authenticate(string $username, #[\SensitiveParameter] string $password): bool
     {
         try {
             $this->connect();
 
-            // Build user DN
             $userDn = str_replace('{username}', $username, $this->userDnPattern);
 
-            $this->logger->info('LDAP: Intentando autenticar usuario', [
+            $this->logger->info('LDAP: Authenticating user', [
                 'username' => $username,
                 'user_dn' => $userDn
             ]);
 
-            // Try to bind with user credentials
             $bind = @ldap_bind($this->connection, $userDn, $password);
 
             if (!$bind) {
-                $this->logger->warning('LDAP: Autenticación fallida', [
+                $this->logger->warning('LDAP: Authentication failed', [
                     'username' => $username,
                     'error' => ldap_error($this->connection)
                 ]);
                 return false;
             }
 
-            $this->logger->info('LDAP: Autenticación exitosa', ['username' => $username]);
+            $this->logger->info('LDAP: Authentication successful', ['username' => $username]);
             return true;
 
         } catch (\Exception $e) {
-            $this->logger->error('LDAP: Error de autenticación', [
+            $this->logger->error('LDAP: Authentication error', [
                 'username' => $username,
                 'error' => $e->getMessage()
             ]);
             return false;
+        } finally {
+            // Reset connection so it is not left bound as the authenticated user
+            $this->disconnect();
         }
     }
 
@@ -87,25 +94,37 @@ class LdapClient
      * @param string|null $password User password (for authenticated search in AD)
      * @return array Array of group CNs
      */
-    public function getUserGroups(string $username, ?string $password = null): array
+    public function getUserGroups(string $username, #[\SensitiveParameter] ?string $password = null): array
     {
         if (!$this->groupSearchEnabled) {
-            $this->logger->debug('LDAP: Búsqueda de grupos deshabilitada');
+            $this->logger->debug('LDAP: Group search disabled');
             return [];
         }
 
+        // Use cache if available and no password provided (password means fresh bind)
+        if ($this->cacheTtl > 0 && $this->cache !== null && $password === null) {
+            $cacheKey = 'ldap_groups_' . md5($username);
+            return $this->cache->get($cacheKey, function (ItemInterface $item) use ($username) {
+                $item->expiresAfter($this->cacheTtl);
+                return $this->fetchUserGroups($username, null);
+            });
+        }
+
+        return $this->fetchUserGroups($username, $password);
+    }
+
+    private function fetchUserGroups(string $username, #[\SensitiveParameter] ?string $password): array
+    {
         try {
             $this->connect();
 
             $userDn = str_replace('{username}', $username, $this->userDnPattern);
 
-            // If password provided, bind as user (for Active Directory)
-            // Otherwise use service account bind
             if ($password !== null) {
-                $this->logger->debug('LDAP: Bind como usuario para búsqueda de grupos', ['username' => $username]);
+                $this->logger->debug('LDAP: Binding as user for group search', ['username' => $username]);
                 $bind = @ldap_bind($this->connection, $userDn, $password);
                 if (!$bind) {
-                    throw new \RuntimeException('No se pudo hacer bind como usuario: ' . ldap_error($this->connection));
+                    throw new \RuntimeException('Failed to bind as user: ' . ldap_error($this->connection));
                 }
             } else {
                 $this->bindForSearch();
@@ -113,7 +132,7 @@ class LdapClient
 
             $baseDn = $this->groupSearchBaseDn ?? $this->baseDn;
 
-            $this->logger->info('LDAP: Buscando grupos del usuario', [
+            $this->logger->info('LDAP: Searching user groups', [
                 'username' => $username,
                 'user_dn' => $userDn,
                 'base_dn' => $baseDn
@@ -121,7 +140,7 @@ class LdapClient
 
             $groups = $this->searchGroupsRecursive($userDn, $baseDn, $username);
 
-            $this->logger->info('LDAP: Grupos encontrados', [
+            $this->logger->info('LDAP: Groups found', [
                 'username' => $username,
                 'groups' => $groups,
                 'count' => count($groups)
@@ -130,7 +149,7 @@ class LdapClient
             return $groups;
 
         } catch (\Exception $e) {
-            $this->logger->error('LDAP: Error al buscar grupos', [
+            $this->logger->error('LDAP: Error searching groups', [
                 'username' => $username,
                 'error' => $e->getMessage()
             ]);
@@ -139,7 +158,7 @@ class LdapClient
     }
 
     /**
-     * Find user by DNI in LDAP (searches in 'employeeID' field)
+     * Find user by DNI in LDAP
      *
      * @param string $dni User DNI
      * @return array|null User data with 'username' and 'groups', or null if not found
@@ -152,19 +171,18 @@ class LdapClient
 
             $baseDn = $this->groupSearchBaseDn ?? $this->baseDn;
 
-            // Search for user by DNI in 'employeeID' field
-            $filter = sprintf('(employeeID=%s)', ldap_escape($dni, '', LDAP_ESCAPE_FILTER));
+            $filter = sprintf('(%s=%s)', $this->dniField, ldap_escape($dni, '', LDAP_ESCAPE_FILTER));
 
-            $this->logger->info('LDAP: Buscando usuario por DNI', [
+            $this->logger->info('LDAP: Searching user by DNI', [
                 'dni' => $dni,
                 'base_dn' => $baseDn,
                 'filter' => $filter
             ]);
 
-            $search = @ldap_search($this->connection, $baseDn, $filter, ['sAMAccountName', 'userPrincipalName', 'cn', 'memberOf', 'employeeID']);
+            $search = @ldap_search($this->connection, $baseDn, $filter, ['sAMAccountName', 'userPrincipalName', 'cn', 'memberOf', $this->dniField]);
 
             if (!$search) {
-                $this->logger->warning('LDAP: Error al buscar usuario por DNI', [
+                $this->logger->warning('LDAP: Error searching user by DNI', [
                     'dni' => $dni,
                     'error' => ldap_error($this->connection)
                 ]);
@@ -174,7 +192,7 @@ class LdapClient
             $entries = ldap_get_entries($this->connection, $search);
 
             if ($entries['count'] === 0) {
-                $this->logger->info('LDAP: Usuario no encontrado por DNI', ['dni' => $dni]);
+                $this->logger->info('LDAP: User not found by DNI', ['dni' => $dni]);
                 return null;
             }
 
@@ -184,7 +202,7 @@ class LdapClient
             $username = $entry['samaccountname'][0] ?? $entry['userprincipalname'][0] ?? $entry['cn'][0] ?? null;
 
             if (!$username) {
-                $this->logger->warning('LDAP: Usuario encontrado pero sin username válido', ['dni' => $dni]);
+                $this->logger->warning('LDAP: User found but no valid username', ['dni' => $dni]);
                 return null;
             }
 
@@ -194,14 +212,13 @@ class LdapClient
                 for ($j = 0; $j < $entry['memberof']['count']; $j++) {
                     $groupDn = $entry['memberof'][$j];
 
-                    // Extract CN from group DN
                     if (preg_match('/^CN=([^,]+)/', $groupDn, $matches)) {
                         $groups[] = $matches[1];
                     }
                 }
             }
 
-            $this->logger->info('LDAP: Usuario encontrado por DNI', [
+            $this->logger->info('LDAP: User found by DNI', [
                 'dni' => $dni,
                 'username' => $username,
                 'groups' => $groups
@@ -213,7 +230,7 @@ class LdapClient
             ];
 
         } catch (\Exception $e) {
-            $this->logger->error('LDAP: Error al buscar usuario por DNI', [
+            $this->logger->error('LDAP: Error searching user by DNI', [
                 'dni' => $dni,
                 'error' => $e->getMessage()
             ]);
@@ -229,36 +246,37 @@ class LdapClient
      */
     public function getUserAttributes(string $username): array
     {
+        if ($this->cacheTtl > 0 && $this->cache !== null) {
+            $cacheKey = 'ldap_attrs_' . md5($username);
+            return $this->cache->get($cacheKey, function (ItemInterface $item) use ($username) {
+                $item->expiresAfter($this->cacheTtl);
+                return $this->fetchUserAttributes($username);
+            });
+        }
+
+        return $this->fetchUserAttributes($username);
+    }
+
+    private function fetchUserAttributes(string $username): array
+    {
         try {
             $this->connect();
             $this->bindForSearch();
 
             $baseDn = $this->groupSearchBaseDn ?? $this->baseDn;
-            $userDn = str_replace('{username}', $username, $this->userDnPattern);
 
-            // Build filter to find user
             $filter = sprintf('(sAMAccountName=%s)', ldap_escape($username, '', LDAP_ESCAPE_FILTER));
 
-            $this->logger->info('LDAP: Buscando atributos del usuario', [
+            $this->logger->info('LDAP: Fetching user attributes', [
                 'username' => $username,
                 'base_dn' => $baseDn,
                 'filter' => $filter
             ]);
 
-            // Request specific attributes
-            $attributes = [
-                'department',
-                'displayName',
-                'extensionName',
-                'mail',
-                'preferredLanguage',
-                'description'
-            ];
-
-            $search = @ldap_search($this->connection, $baseDn, $filter, $attributes);
+            $search = @ldap_search($this->connection, $baseDn, $filter, $this->userAttributes);
 
             if (!$search) {
-                $this->logger->warning('LDAP: Error al buscar atributos del usuario', [
+                $this->logger->warning('LDAP: Error fetching user attributes', [
                     'username' => $username,
                     'error' => ldap_error($this->connection)
                 ]);
@@ -268,15 +286,14 @@ class LdapClient
             $entries = ldap_get_entries($this->connection, $search);
 
             if ($entries['count'] === 0) {
-                $this->logger->info('LDAP: Usuario no encontrado para obtener atributos', ['username' => $username]);
+                $this->logger->info('LDAP: User not found for attribute lookup', ['username' => $username]);
                 return [];
             }
 
             $entry = $entries[0];
             $userAttributes = [];
 
-            // Extract attributes (LDAP returns arrays, we take the first value)
-            foreach ($attributes as $attribute) {
+            foreach ($this->userAttributes as $attribute) {
                 $attributeLower = strtolower($attribute);
                 if (isset($entry[$attributeLower][0])) {
                     $userAttributes[$attribute] = $entry[$attributeLower][0];
@@ -285,7 +302,7 @@ class LdapClient
                 }
             }
 
-            $this->logger->info('LDAP: Atributos obtenidos', [
+            $this->logger->info('LDAP: Attributes fetched', [
                 'username' => $username,
                 'attributes' => array_keys(array_filter($userAttributes))
             ]);
@@ -293,7 +310,7 @@ class LdapClient
             return $userAttributes;
 
         } catch (\Exception $e) {
-            $this->logger->error('LDAP: Error al obtener atributos del usuario', [
+            $this->logger->error('LDAP: Error fetching user attributes', [
                 'username' => $username,
                 'error' => $e->getMessage()
             ]);
@@ -309,17 +326,15 @@ class LdapClient
      */
     public function mapGroupsToRoles(array $groups): array
     {
-        $roles = [$this->defaultRole]; // Always include default role
+        $roles = [$this->defaultRole];
 
         foreach ($groups as $group) {
-            // Normalize group name (lowercase)
             $groupNormalized = strtolower($group);
 
-            // Check if group has a mapped role
             foreach ($this->roleMapping as $ldapGroup => $role) {
                 if (strtolower($ldapGroup) === $groupNormalized) {
                     $roles[] = $role;
-                    $this->logger->debug('LDAP: Grupo mapeado a rol', [
+                    $this->logger->debug('LDAP: Group mapped to role', [
                         'group' => $group,
                         'role' => $role
                     ]);
@@ -327,10 +342,9 @@ class LdapClient
             }
         }
 
-        // Remove duplicates and return
         $roles = array_unique($roles);
 
-        $this->logger->info('LDAP: Roles finales asignados', [
+        $this->logger->info('LDAP: Roles assigned', [
             'groups' => $groups,
             'roles' => $roles
         ]);
@@ -344,34 +358,27 @@ class LdapClient
     private function connect(): void
     {
         if ($this->connection !== null) {
-            return; // Already connected
+            return;
         }
 
-        // Build LDAP URI
         $protocol = $this->encryption === 'ssl' ? 'ldaps' : 'ldap';
         $uri = sprintf('%s://%s:%d', $protocol, $this->host, $this->port);
 
-        $this->logger->debug('LDAP: Conectando al servidor', ['uri' => $uri]);
+        $this->logger->debug('LDAP: Connecting to server', ['uri' => $uri]);
 
         $this->connection = ldap_connect($uri);
 
-        if (!$this->connection) {
-            throw new \RuntimeException('No se pudo conectar al servidor LDAP');
-        }
-
-        // Set LDAP options
         ldap_set_option($this->connection, LDAP_OPT_PROTOCOL_VERSION, 3);
         ldap_set_option($this->connection, LDAP_OPT_REFERRALS, 0);
         ldap_set_option($this->connection, LDAP_OPT_NETWORK_TIMEOUT, 10);
 
-        // Enable TLS if needed
         if ($this->encryption === 'tls') {
             if (!@ldap_start_tls($this->connection)) {
-                throw new \RuntimeException('No se pudo iniciar TLS: ' . ldap_error($this->connection));
+                throw new \RuntimeException('Could not start TLS: ' . ldap_error($this->connection));
             }
         }
 
-        $this->logger->info('LDAP: Conexión establecida');
+        $this->logger->info('LDAP: Connection established');
     }
 
     /**
@@ -380,21 +387,20 @@ class LdapClient
     private function bindForSearch(): void
     {
         if ($this->bindDn && $this->bindPassword) {
-            $this->logger->debug('LDAP: Bind con DN específico', ['bind_dn' => $this->bindDn]);
+            $this->logger->debug('LDAP: Binding with service account', ['bind_dn' => $this->bindDn]);
 
             $bind = @ldap_bind($this->connection, $this->bindDn, $this->bindPassword);
 
             if (!$bind) {
-                throw new \RuntimeException('No se pudo hacer bind para búsqueda: ' . ldap_error($this->connection));
+                throw new \RuntimeException('Failed to bind for search: ' . ldap_error($this->connection));
             }
         } else {
-            // Anonymous bind
-            $this->logger->debug('LDAP: Bind anónimo');
+            $this->logger->debug('LDAP: Anonymous bind');
 
             $bind = @ldap_bind($this->connection);
 
             if (!$bind) {
-                throw new \RuntimeException('No se pudo hacer bind anónimo: ' . ldap_error($this->connection));
+                throw new \RuntimeException('Failed anonymous bind: ' . ldap_error($this->connection));
             }
         }
     }
@@ -410,22 +416,20 @@ class LdapClient
      */
     private function searchGroupsRecursive(string $userDn, string $baseDn, ?string $username = null, array $foundGroups = []): array
     {
-        // Build search filter - replace placeholders
         $filter = str_replace('{user_dn}', $userDn, $this->groupSearchFilter);
         if ($username !== null) {
             $filter = str_replace('{username}', $username, $filter);
         }
 
-        $this->logger->debug('LDAP: Buscando grupos', [
+        $this->logger->debug('LDAP: Searching groups', [
             'base_dn' => $baseDn,
             'filter' => $filter
         ]);
 
-        // Search for user and get memberOf attribute (Active Directory style)
         $search = @ldap_search($this->connection, $baseDn, $filter, ['cn', 'memberOf', 'sAMAccountName']);
 
         if (!$search) {
-            $this->logger->warning('LDAP: Error en búsqueda de grupos', [
+            $this->logger->warning('LDAP: Group search error', [
                 'error' => ldap_error($this->connection)
             ]);
             return $foundGroups;
@@ -437,37 +441,31 @@ class LdapClient
             return $foundGroups;
         }
 
-        // Process entries - for Active Directory, get memberOf attribute
         for ($i = 0; $i < $entries['count']; $i++) {
             $entry = $entries[$i];
 
-            // Always add the entry's own CN first                                                                 
-            if (isset($entry['cn'][0])) {                                                                          
-                $entryCn = $entry['cn'][0];                                                                        
-                if (!in_array($entryCn, $foundGroups, true)) {                                                     
-                    $foundGroups[] = $entryCn;                                                                     
-                    $this->logger->debug('LDAP: Grupo encontrado', ['group' => $entryCn]);                         
-                }                                                                                                  
-            }  
+            if (isset($entry['cn'][0])) {
+                $entryCn = $entry['cn'][0];
+                if (!in_array($entryCn, $foundGroups, true)) {
+                    $foundGroups[] = $entryCn;
+                    $this->logger->debug('LDAP: Group found', ['group' => $entryCn]);
+                }
+            }
 
-            // Active Directory: memberOf attribute contains parent groups
             if (isset($entry['memberof'])) {
                 for ($j = 0; $j < $entry['memberof']['count']; $j++) {
                     $groupDn = $entry['memberof'][$j];
 
-                    // Extract CN from group DN (e.g., "CN=Domain Admins,CN=Users,DC=pasaia,DC=net")
                     if (preg_match('/^CN=([^,]+)/', $groupDn, $matches)) {
                         $groupCn = $matches[1];
 
-                        // Skip if already found
                         if (in_array($groupCn, $foundGroups, true)) {
                             continue;
                         }
 
                         $foundGroups[] = $groupCn;
-                        $this->logger->debug('LDAP: Grupo encontrado', ['group' => $groupCn]);
+                        $this->logger->debug('LDAP: Group found', ['group' => $groupCn]);
 
-                        // Recursive search if enabled (for nested groups)
                         if ($this->groupSearchRecursive) {
                             $foundGroups = $this->searchGroupsRecursive($groupDn, $baseDn, null, $foundGroups);
                         }
@@ -487,7 +485,7 @@ class LdapClient
         if ($this->connection !== null) {
             @ldap_close($this->connection);
             $this->connection = null;
-            $this->logger->debug('LDAP: Conexión cerrada');
+            $this->logger->debug('LDAP: Connection closed');
         }
     }
 

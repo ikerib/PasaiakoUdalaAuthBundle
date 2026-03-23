@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace PasaiaUdala\AuthBundle\Security;
 
+use PasaiaUdala\AuthBundle\Event\LdapGroupsLoadedEvent;
+use PasaiaUdala\AuthBundle\Event\PostAuthenticationEvent;
 use PasaiaUdala\AuthBundle\Service\LdapClient;
 use KnpU\OAuth2ClientBundle\Client\ClientRegistry;
 use KnpU\OAuth2ClientBundle\Security\Authenticator\OAuth2Authenticator;
@@ -17,6 +19,7 @@ use Symfony\Component\Security\Http\Authenticator\Passport\Badge\UserBadge;
 use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
 use Symfony\Component\Security\Http\Authenticator\Passport\SelfValidatingPassport;
 use Symfony\Component\Security\Http\EntryPoint\AuthenticationEntryPointInterface;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * CertificateAuthenticator - Authenticates users via Izenpe certificate (OAuth2)
@@ -27,6 +30,7 @@ class CertificateAuthenticator extends OAuth2Authenticator implements Authentica
         private readonly ClientRegistry $clientRegistry,
         private readonly RouterInterface $router,
         private readonly LdapClient $ldapClient,
+        private readonly EventDispatcherInterface $eventDispatcher,
         private readonly string $homeRoute = 'app_home',
         private readonly string $loginSelectorRoute = 'app_login',
         private readonly string $oauthCheckRoute = 'oauth_check',
@@ -62,17 +66,15 @@ class CertificateAuthenticator extends OAuth2Authenticator implements Authentica
                 $ldapUser = $this->ldapClient->findUserByDni($dni);
 
                 if ($ldapUser !== null) {
-                    // Usuario encontrado en LDAP - usar su username y grupos
                     $username = $ldapUser['username'];
                     $groups = $ldapUser['groups'];
                     $roles = $this->ldapClient->mapGroupsToRoles($groups);
 
-                    return new LdapUser(
-                        $username, // username de LDAP (ej: iibarguren@pasaia.net)
-                        $roles,    // roles mapeados de grupos LDAP
-                        $groups,   // grupos LDAP
-                        $userDataArray // Datos del certificado
-                    );
+                    $event = new LdapGroupsLoadedEvent($username, $groups, $roles, 'certificate');
+                    $this->eventDispatcher->dispatch($event);
+                    $roles = $event->getRoles();
+
+                    return new LdapUser($username, $roles, $groups, $userDataArray);
                 } else {
                     // Usuario NO encontrado en LDAP - usar DNI como username con rol básico
                     // Esto permite acceso con certificado válido aunque no esté en LDAP
@@ -89,6 +91,11 @@ class CertificateAuthenticator extends OAuth2Authenticator implements Authentica
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
     {
+        $user = $token->getUser();
+        if ($user instanceof LdapUser) {
+            $this->eventDispatcher->dispatch(new PostAuthenticationEvent($user, 'certificate'));
+        }
+
         return new RedirectResponse($this->router->generate($this->homeRoute));
     }
 

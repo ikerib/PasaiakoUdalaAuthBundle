@@ -21,6 +21,10 @@ services:
             $groupSearchFilter: '%pasaiako_udala_auth.group_search.filter%'
             $groupSearchRecursive: '%pasaiako_udala_auth.group_search.recursive%'
             $logger: '@logger'
+            $dniField: '%pasaiako_udala_auth.dni_field%'
+            $userAttributes: '%pasaiako_udala_auth.user_attributes%'
+            $cacheTtl: '%pasaiako_udala_auth.cache_ttl%'
+            $cache: '@?cache.app'
         public: true
 
     # User Provider
@@ -33,8 +37,13 @@ services:
         arguments:
             $ldapClient: '@PasaiaUdala\AuthBundle\Service\LdapClient'
             $userProvider: '@PasaiaUdala\AuthBundle\Security\LdapUserProvider'
+            $eventDispatcher: '@event_dispatcher'
             $homeRoute: '%pasaiako_udala_auth.routes.home%'
             $loginLdapRoute: '%pasaiako_udala_auth.routes.login_ldap%'
+
+    # Auth Controller (optional — host app can define its own controllers instead)
+    PasaiaUdala\AuthBundle\Controller\AuthController:
+        tags: ['controller.service_arguments']
 
     # Certificate Authenticator (OAuth2 Izenpe)
     PasaiaUdala\AuthBundle\Security\CertificateAuthenticator:
@@ -42,6 +51,7 @@ services:
             $clientRegistry: '@KnpU\OAuth2ClientBundle\Client\ClientRegistry'
             $router: '@router'
             $ldapClient: '@PasaiaUdala\AuthBundle\Service\LdapClient'
+            $eventDispatcher: '@event_dispatcher'
             $homeRoute: '%pasaiako_udala_auth.routes.home%'
             $loginSelectorRoute: '%pasaiako_udala_auth.routes.login_selector%'
             $oauthCheckRoute: '%pasaiako_udala_auth.routes.oauth_check%'

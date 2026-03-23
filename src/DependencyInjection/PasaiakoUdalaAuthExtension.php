@@ -7,13 +7,26 @@ namespace PasaiaUdala\AuthBundle\DependencyInjection;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
+use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 
 /**
  * LdapAuthExtension - Loads and manages bundle configuration
  */
-class PasaiakoUdalaAuthExtension extends Extension
+class PasaiakoUdalaAuthExtension extends Extension implements PrependExtensionInterface
 {
+    public function prepend(ContainerBuilder $container): void
+    {
+        // Register Twig template path so @PasaiakoUdalaAuth namespace works
+        if ($container->hasExtension('twig')) {
+            $container->prependExtensionConfig('twig', [
+                'paths' => [
+                    __DIR__ . '/../Resources/views' => 'PasaiakoUdalaAuth',
+                ],
+            ]);
+        }
+    }
+
     public function load(array $configs, ContainerBuilder $container): void
     {
         $configuration = new Configuration();
@@ -43,6 +56,9 @@ class PasaiakoUdalaAuthExtension extends Extension
         $container->setParameter('pasaiako_udala_auth.group_search.base_dn', $config['group_search']['base_dn']);
         $container->setParameter('pasaiako_udala_auth.group_search.filter', $config['group_search']['filter']);
         $container->setParameter('pasaiako_udala_auth.group_search.recursive', $config['group_search']['recursive']);
+        $container->setParameter('pasaiako_udala_auth.dni_field', $config['dni_field']);
+        $container->setParameter('pasaiako_udala_auth.user_attributes', $config['user_attributes']);
+        $container->setParameter('pasaiako_udala_auth.cache_ttl', $config['cache_ttl']);
         $container->setParameter('pasaiako_udala_auth.routes.home', $config['routes']['home']);
         $container->setParameter('pasaiako_udala_auth.routes.login_selector', $config['routes']['login_selector']);
         $container->setParameter('pasaiako_udala_auth.routes.login_ldap', $config['routes']['login_ldap']);

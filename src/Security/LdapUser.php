@@ -11,12 +11,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 class LdapUser implements UserInterface
 {
-    private ?string $department = null;
-    private ?string $displayName = null;
-    private ?string $extensionName = null;
-    private ?string $mail = null;
-    private ?string $preferredLanguage = null;
-    private ?string $description = null;
+    private array $ldapAttributes = [];
 
     public function __construct(
         private readonly string $username,
@@ -61,65 +56,57 @@ class LdapUser implements UserInterface
         // Nothing to erase (no password stored)
     }
 
-    // LDAP attribute getters and setters
+    // Generic LDAP attribute access
+
+    public function getLdapAttributes(): array
+    {
+        return $this->ldapAttributes;
+    }
+
+    public function setLdapAttributes(array $attributes): void
+    {
+        $this->ldapAttributes = $attributes;
+    }
+
+    public function getLdapAttribute(string $name): ?string
+    {
+        return $this->ldapAttributes[$name] ?? null;
+    }
+
+    public function setLdapAttribute(string $name, ?string $value): void
+    {
+        $this->ldapAttributes[$name] = $value;
+    }
+
+    // Convenience getters for common attributes (backwards compatible)
 
     public function getDepartment(): ?string
     {
-        return $this->department;
-    }
-
-    public function setDepartment(?string $department): void
-    {
-        $this->department = $department;
+        return $this->getLdapAttribute('department');
     }
 
     public function getDisplayName(): ?string
     {
-        return $this->displayName;
-    }
-
-    public function setDisplayName(?string $displayName): void
-    {
-        $this->displayName = $displayName;
+        return $this->getLdapAttribute('displayName');
     }
 
     public function getExtensionName(): ?string
     {
-        return $this->extensionName;
-    }
-
-    public function setExtensionName(?string $extensionName): void
-    {
-        $this->extensionName = $extensionName;
+        return $this->getLdapAttribute('extensionName');
     }
 
     public function getMail(): ?string
     {
-        return $this->mail;
-    }
-
-    public function setMail(?string $mail): void
-    {
-        $this->mail = $mail;
+        return $this->getLdapAttribute('mail');
     }
 
     public function getPreferredLanguage(): ?string
     {
-        return $this->preferredLanguage;
-    }
-
-    public function setPreferredLanguage(?string $preferredLanguage): void
-    {
-        $this->preferredLanguage = $preferredLanguage;
+        return $this->getLdapAttribute('preferredLanguage');
     }
 
     public function getDescription(): ?string
     {
-        return $this->description;
-    }
-
-    public function setDescription(?string $description): void
-    {
-        $this->description = $description;
+        return $this->getLdapAttribute('description');
     }
 }

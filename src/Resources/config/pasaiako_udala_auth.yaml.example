@@ -58,6 +58,26 @@ pasaiako_udala_auth:
         # Search groups recursively (nested groups)
         recursive: true
 
+    # LDAP attribute used to search users by DNI (for certificate authentication)
+    # Change to match your LDAP schema (e.g., sn, extensionAttribute1, employeeNumber)
+    dni_field: employeeID
+
+    # LDAP attributes to fetch for the user object
+    # Customize to match your LDAP schema
+    user_attributes:
+        - department
+        - displayName
+        - extensionName
+        - mail
+        - preferredLanguage
+        - description
+        # - telephoneNumber
+        # - title
+
+    # Cache TTL in seconds for LDAP groups and attributes (0 = disabled)
+    # Avoids LDAP queries on every request during session refresh
+    cache_ttl: 300
+
     # Route names used by the bundle
     # Override these to match your application's route names
     routes:

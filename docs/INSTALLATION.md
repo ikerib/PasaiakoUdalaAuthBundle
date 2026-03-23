@@ -227,7 +227,30 @@ class OAuth2Controller extends AbstractController
 }
 ```
 
-## 9. Instalazioa egiaztatu
+## 9. Segurtasuna: Rate Limiting (indar gordinaren aurkako babesa)
+
+LDAP login-ean brute force erasoak ekiditeko, Symfony-ren `login_throttling` erabiltzea gomendatzen da. `LdapAuthenticator`-ek `AbstractLoginFormAuthenticator` hedatzen duenez, automatikoki funtzionatzen du.
+
+```yaml
+# config/packages/security.yaml
+security:
+    firewalls:
+        main:
+            login_throttling:
+                max_attempts: 5          # Gehienez 5 saiakera
+                interval: '15 minutes'   # 15 minutuko tartean
+                # lock_factory: lock.default.factory  # Aukerakoa: lock factory zehatza
+```
+
+Horretarako `symfony/rate-limiter` instalatu behar da:
+
+```bash
+composer require symfony/rate-limiter
+```
+
+Muga gainditutakoan, erabiltzaileak `TooManyLoginAttemptsAuthenticationException` jasoko du eta itxaron beharko du.
+
+## 10. Instalazioa egiaztatu
 
 ```bash
 # Egiaztatu bundle-a erregistratuta dagoela
@@ -240,7 +263,7 @@ php bin/console debug:router | grep -E "(auth|login|oauth)"
 php bin/console debug:config pasaiako_udala_auth
 ```
 
-## 10. Autentifikazioa probatu
+## 11. Autentifikazioa probatu
 
 1. Joan `/auth-selector` → Ikusi metodo hautatzailea
 2. Aukeratu "LDAP" → Erabiltzaile/Password inprimakia

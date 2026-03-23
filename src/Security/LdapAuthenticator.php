@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace PasaiaUdala\AuthBundle\Security;
 
+use PasaiaUdala\AuthBundle\Event\LdapGroupsLoadedEvent;
+use PasaiaUdala\AuthBundle\Event\PostAuthenticationEvent;
 use PasaiaUdala\AuthBundle\Service\LdapClient;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -20,6 +22,7 @@ use Symfony\Component\Security\Http\Authenticator\Passport\Credentials\CustomCre
 use Symfony\Component\Security\Http\Authenticator\Passport\Passport;
 use Symfony\Component\Security\Http\SecurityRequestAttributes;
 use Symfony\Component\Security\Http\Util\TargetPathTrait;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * LdapAuthenticator - Authenticates users via LDAP
@@ -32,6 +35,7 @@ class LdapAuthenticator extends AbstractLoginFormAuthenticator
         private readonly LdapClient $ldapClient,
         private readonly LdapUserProvider $userProvider,
         private readonly UrlGeneratorInterface $urlGenerator,
+        private readonly EventDispatcherInterface $eventDispatcher,
         private readonly string $homeRoute = 'app_home',
         private readonly string $loginLdapRoute = 'app_login_ldap',
     ) {
@@ -47,11 +51,12 @@ class LdapAuthenticator extends AbstractLoginFormAuthenticator
 
         return new Passport(
             new UserBadge($username, function ($userIdentifier) {
-                // Get user's groups from LDAP (using service account bind)
                 $groups = $this->ldapClient->getUserGroups($userIdentifier);
-
-                // Map groups to roles
                 $roles = $this->ldapClient->mapGroupsToRoles($groups);
+
+                $event = new LdapGroupsLoadedEvent($userIdentifier, $groups, $roles, 'ldap');
+                $this->eventDispatcher->dispatch($event);
+                $roles = $event->getRoles();
 
                 return new LdapUser($userIdentifier, $roles, $groups);
             }),
@@ -71,6 +76,11 @@ class LdapAuthenticator extends AbstractLoginFormAuthenticator
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): ?Response
     {
+        $user = $token->getUser();
+        if ($user instanceof LdapUser) {
+            $this->eventDispatcher->dispatch(new PostAuthenticationEvent($user, 'ldap'));
+        }
+
         if ($targetPath = $this->getTargetPath($request->getSession(), $firewallName)) {
             return new RedirectResponse($targetPath);
         }
