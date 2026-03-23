@@ -59,16 +59,21 @@ class PasaiakoUdalaAuthExtension extends Extension implements PrependExtensionIn
         $container->setParameter('pasaiako_udala_auth.dni_field', $config['dni_field']);
         $container->setParameter('pasaiako_udala_auth.user_attributes', $config['user_attributes']);
         $container->setParameter('pasaiako_udala_auth.cache_ttl', $config['cache_ttl']);
+        $container->setParameter('pasaiako_udala_auth.base_template', $config['base_template']);
         $container->setParameter('pasaiako_udala_auth.routes.home', $config['routes']['home']);
         $container->setParameter('pasaiako_udala_auth.routes.login_selector', $config['routes']['login_selector']);
         $container->setParameter('pasaiako_udala_auth.routes.login_ldap', $config['routes']['login_ldap']);
         $container->setParameter('pasaiako_udala_auth.routes.oauth_connect', $config['routes']['oauth_connect']);
         $container->setParameter('pasaiako_udala_auth.routes.oauth_check', $config['routes']['oauth_check']);
 
-        // Register Twig globals if TwigBundle is available
-        if ($container->hasDefinition('twig') || $container->hasAlias('twig')) {
-            $twig = $container->getDefinition('twig');
-            $twig->addMethodCall('addGlobal', ['pasaiako_udala_auth_routes', $config['routes']]);
+        // Register Twig globals through extension config so it works with service aliases
+        if ($container->hasExtension('twig')) {
+            $container->prependExtensionConfig('twig', [
+                'globals' => [
+                    'pasaiako_udala_auth_base_template' => $config['base_template'],
+                    'pasaiako_udala_auth_routes' => $config['routes'],
+                ],
+            ]);
         }
 
         // Load services

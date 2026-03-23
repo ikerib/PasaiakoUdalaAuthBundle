@@ -78,6 +78,10 @@ pasaiako_udala_auth:
     # Avoids LDAP queries on every request during session refresh
     cache_ttl: 300
 
+    # Base template used by bundle Twig views
+    # Override when your app does not use base.html.twig
+    base_template: base.html.twig
+
     # Route names used by the bundle
     # Override these to match your application's route names
     routes:

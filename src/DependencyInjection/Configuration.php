@@ -52,6 +52,16 @@ class Configuration implements ConfigurationInterface
                             ->info('Optional: Password for bind DN')
                         ->end()
                     ->end()
+                    ->validate()
+                        ->ifTrue(static function (array $server): bool {
+                            if (empty($server['host'])) {
+                                return false;
+                            }
+
+                            return empty($server['base_dn']) || empty($server['user_dn_pattern']);
+                        })
+                        ->thenInvalid('When "server.host" is configured, both "server.base_dn" and "server.user_dn_pattern" must be configured as well.')
+                    ->end()
                 ->end()
                 ->arrayNode('role_mapping')
                     ->info('Map LDAP groups to Symfony roles')
@@ -101,6 +111,10 @@ class Configuration implements ConfigurationInterface
                     ->defaultValue(0)
                     ->min(0)
                     ->info('Cache TTL in seconds for LDAP groups/attributes (0 = disabled)')
+                ->end()
+                ->scalarNode('base_template')
+                    ->defaultValue('base.html.twig')
+                    ->info('Base Twig template used by bundle views (for example, base.html.twig)')
                 ->end()
                 ->arrayNode('routes')
                     ->addDefaultsIfNotSet()

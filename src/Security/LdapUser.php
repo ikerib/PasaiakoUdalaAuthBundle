@@ -11,14 +11,22 @@ use Symfony\Component\Security\Core\User\UserInterface;
  */
 class LdapUser implements UserInterface
 {
+    private string $username;
+    private array $roles;
+    private array $groups;
+    private array $certificateData;
     private array $ldapAttributes = [];
 
     public function __construct(
-        private readonly string $username,
-        private readonly array $roles,
-        private readonly array $groups = [],
-        private readonly array $certificateData = []
+        string $username,
+        array $roles,
+        array $groups = [],
+        array $certificateData = []
     ) {
+        $this->username = $username;
+        $this->roles = $roles;
+        $this->groups = $groups;
+        $this->certificateData = $certificateData;
     }
 
     public function getUsername(): string
@@ -76,6 +84,26 @@ class LdapUser implements UserInterface
     public function setLdapAttribute(string $name, ?string $value): void
     {
         $this->ldapAttributes[$name] = $value;
+    }
+
+    public function __serialize(): array
+    {
+        return [
+            'username' => $this->username,
+            'roles' => $this->roles,
+            'groups' => $this->groups,
+            'certificateData' => $this->certificateData,
+            'ldapAttributes' => $this->ldapAttributes,
+        ];
+    }
+
+    public function __unserialize(array $data): void
+    {
+        $this->username = (string) ($data['username'] ?? '');
+        $this->roles = (array) ($data['roles'] ?? []);
+        $this->groups = (array) ($data['groups'] ?? []);
+        $this->certificateData = (array) ($data['certificateData'] ?? []);
+        $this->ldapAttributes = (array) ($data['ldapAttributes'] ?? []);
     }
 
     // Convenience getters for common attributes (backwards compatible)
