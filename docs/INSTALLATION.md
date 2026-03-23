@@ -1,4 +1,4 @@
-# PasaiakoUdalaAuthBundle instalazioa
+# PasaiaUdalaAuthBundle instalazioa
 
 Gida honek bundlea nola instalatu eta konfiguratu azalduko dizu pausoz pauso.
 
@@ -16,7 +16,7 @@ Symfony Flex erabiltzen baduzu, bundle-a automatikoki erregistratuko da. Bestela
 // config/bundles.php
 return [
     // ...
-    PasaiaUdala\AuthBundle\PasaiakoUdalaAuthBundle::class => ['all' => true],
+    PasaiaUdala\AuthBundle\PasaiaUdalaAuthBundle::class => ['all' => true],
 ];
 ```
 

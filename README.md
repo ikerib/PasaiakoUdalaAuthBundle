@@ -1,4 +1,4 @@
-# PasaiakoUdalaAuthBundle
+# PasaiaUdalaAuthBundle
 
 Symfony-rako autentikazio bikoitzerako bundlea: **LDAP** (Active Directory) + **Ziurtagiria** (Izenpe OAuth2).
 

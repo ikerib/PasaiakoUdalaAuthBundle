@@ -1,5 +1,5 @@
 ```plaintext
-# PasaiakoUdalaAuthBundle Configuration Example
+# PasaiaUdalaAuthBundle Configuration Example
 #
 # This file shows how to configure the LDAP authentication bundle
 # Copy this to config/packages/pasaiako_udala_auth.yaml and adjust for your environment

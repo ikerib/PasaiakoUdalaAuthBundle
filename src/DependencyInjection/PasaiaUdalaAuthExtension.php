@@ -13,7 +13,7 @@ use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 /**
  * LdapAuthExtension - Loads and manages bundle configuration
  */
-class PasaiakoUdalaAuthExtension extends Extension implements PrependExtensionInterface
+class PasaiaUdalaAuthExtension extends Extension implements PrependExtensionInterface
 {
     public function prepend(ContainerBuilder $container): void
     {

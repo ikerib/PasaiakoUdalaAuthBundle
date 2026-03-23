@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace PasaiaUdala\AuthBundle;
 
-use PasaiaUdala\AuthBundle\DependencyInjection\PasaiakoUdalaAuthExtension;
+use PasaiaUdala\AuthBundle\DependencyInjection\PasaiaUdalaAuthExtension;
 use Symfony\Component\DependencyInjection\Extension\ExtensionInterface;
 use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
 
 /**
- * PasaiakoUdalaAuthBundle - Authentication Bundle for Pasaia Udala
+ * PasaiaUdalaAuthBundle - Authentication Bundle for Pasaia Udala
  *
  * Provides dual authentication system (LDAP + Izenpe Certificate) with group search and role mapping.
  *
@@ -23,7 +23,7 @@ use Symfony\Component\HttpKernel\Bundle\AbstractBundle;
  * @author Pasaia Udala
  * @version 1.1.0
  */
-class PasaiakoUdalaAuthBundle extends AbstractBundle
+class PasaiaUdalaAuthBundle extends AbstractBundle
 {
     public function getPath(): string
     {
@@ -32,6 +32,6 @@ class PasaiakoUdalaAuthBundle extends AbstractBundle
 
     public function getContainerExtension(): ?ExtensionInterface
     {
-        return new PasaiakoUdalaAuthExtension();
+        return new PasaiaUdalaAuthExtension();
     }
 }

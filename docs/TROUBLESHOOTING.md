@@ -1,6 +1,6 @@
 # Arazoen konponketa (Troubleshooting)
 
-PasaiakoUdalaAuthBundle erabiltzerakoan sortzen diren arazo ohikoen konponbideak.
+PasaiaUdalaAuthBundle erabiltzerakoan sortzen diren arazo ohikoen konponbideak.
 
 ## LDAP autentifikazio arazoak
 
@@ -37,7 +37,7 @@ PasaiakoUdalaAuthBundle erabiltzerakoan sortzen diren arazo ohikoen konponbideak
 
 # Arazoen konponketa (Troubleshooting)
 
-PasaiakoUdalaAuthBundle erabiltzerakoan sortzen diren arazo ohikoen konponbideak.
+PasaiaUdalaAuthBundle erabiltzerakoan sortzen diren arazo ohikoen konponbideak.
 
 ## LDAP autentifikazio arazoak
 
