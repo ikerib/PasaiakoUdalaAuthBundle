@@ -3,6 +3,11 @@
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Versioned according to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-03-27
+
+### Fixed
+- Twig globals (`pasaiako_udala_auth_base_template`, `pasaiako_udala_auth_routes`) are now registered even when LDAP is not configured, fixing a crash on fresh installs
+
 ## [1.2.0] - 2026-03-27
 
 ### Added

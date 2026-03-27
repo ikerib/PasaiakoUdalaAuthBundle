@@ -31,6 +31,17 @@ class PasaiaUdalaAuthExtension extends Extension implements PrependExtensionInte
     {
         $configuration = new Configuration();
         $config = $this->processConfiguration($configuration, $configs);
+
+        // Always register Twig globals so templates work regardless of LDAP configuration
+        if ($container->hasExtension('twig')) {
+            $container->prependExtensionConfig('twig', [
+                'globals' => [
+                    'pasaiako_udala_auth_base_template' => $config['base_template'],
+                    'pasaiako_udala_auth_routes' => $config['routes'],
+                ],
+            ]);
+        }
+
         // If no LDAP host is configured, do not register services to avoid
         // breaking the host application when the bundle is installed but not configured.
         $serverConfig = $config['server'] ?? [];
@@ -65,16 +76,6 @@ class PasaiaUdalaAuthExtension extends Extension implements PrependExtensionInte
         $container->setParameter('pasaiako_udala_auth.routes.login_ldap', $config['routes']['login_ldap']);
         $container->setParameter('pasaiako_udala_auth.routes.oauth_connect', $config['routes']['oauth_connect']);
         $container->setParameter('pasaiako_udala_auth.routes.oauth_check', $config['routes']['oauth_check']);
-
-        // Register Twig globals through extension config so it works with service aliases
-        if ($container->hasExtension('twig')) {
-            $container->prependExtensionConfig('twig', [
-                'globals' => [
-                    'pasaiako_udala_auth_base_template' => $config['base_template'],
-                    'pasaiako_udala_auth_routes' => $config['routes'],
-                ],
-            ]);
-        }
 
         // Load services
         $loader = new YamlFileLoader(
